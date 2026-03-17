@@ -314,13 +314,14 @@ function VariantComparePage({ bike, onBack, onSelectVariant, compared, onCompare
 
 // ─── Detail Page ────────────────────────────────────────────────────────────
 
-function DetailPage({ variant, family, onBack, bike }) {
+function DetailPage({ variant, family, onBack, bike, onCompareVariants }) {
   const [sz, setSz] = useState(null);
   const [selColor, setSelColor] = useState(variant.colors[0]);
   const onSale = variant.salePrice !== null;
   const pct = onSale ? salePct(variant.price, variant.salePrice) : 0;
   const category = bike?.category || "";
   const keySpecs = [variant.weight, variant.groupset, variant.wheels].filter(Boolean);
+  const otherVariants = bike ? bike.variants.filter(v => v.id !== variant.id) : [];
 
   return (
     <div>
@@ -372,6 +373,22 @@ function DetailPage({ variant, family, onBack, bike }) {
 
           {/* Description */}
           <p style={{ fontFamily: T.fontB, fontSize: 14, lineHeight: 1.6, color: T.darkGrey, margin: "0 0 20px" }}>{variant.subtitle}</p>
+
+          {/* Variant awareness banner */}
+          {otherVariants.length > 0 && (
+            <div style={{ background: T.bgGrey, borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.darkGrey }}>
+                <span style={{ fontSize: 14, lineHeight: 1 }}>{"\u2139"}</span>
+                Also available in {otherVariants.length} other {otherVariants.length === 1 ? "variant" : "variants"}
+              </div>
+              <span onClick={onCompareVariants}
+                style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.black, cursor: "pointer", whiteSpace: "nowrap" }}
+                onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>
+                Compare variants {"\u2192"}
+              </span>
+            </div>
+          )}
 
           {/* Key specs */}
           {keySpecs.length > 0 && (
@@ -519,7 +536,7 @@ export default function App() {
         {BIKES.map(b => <ProductCard key={b.id} bike={b} onSelect={selBike} onCompare={toggleComp} isCompared={comp.includes(b.variants[0].id)} />)}
       </div></>}
       {pg === "compare" && bike && <VariantComparePage bike={bike} onBack={back} onSelectVariant={selVar} compared={comp} onCompare={toggleComp} />}
-      {pg === "detail" && vari && <DetailPage variant={vari} family={bike?.family || vari.name} onBack={back} bike={bike} />}
+      {pg === "detail" && vari && <DetailPage variant={vari} family={bike?.family || vari.name} onBack={back} bike={bike} onCompareVariants={() => go("compare")} />}
     </div>
   );
 }
