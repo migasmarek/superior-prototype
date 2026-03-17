@@ -97,6 +97,9 @@ const BIKES = [
   ]},
 ];
 
+const PRICE_MIN = Math.min(...BIKES.flatMap(b => b.variants.map(v => v.salePrice !== null ? v.salePrice : v.price)));
+const PRICE_MAX = Math.max(...BIKES.flatMap(b => b.variants.map(v => v.salePrice !== null ? v.salePrice : v.price)));
+
 const SPEC_KEYS = [
   {key:"weight",label:"Weight"},{key:"frame",label:"Frame"},{key:"groupset",label:"Groupset"},
   {key:"wheels",label:"Wheels"},{key:"brakes",label:"Brakes"},{key:"cockpit",label:"Cockpit"},
@@ -166,35 +169,110 @@ function GridPrice({ variants }) {
   return <div style={{ ...mono, color: T.black }}>{fmt(v.price)} czk</div>;
 }
 
+// ─── Filter Panel ───────────────────────────────────────────────────────────
+
+function FilterPanel({ onClose, priceFilter, onApply, onReset, filteredCount }) {
+  const [localMin, setLocalMin] = useState(priceFilter.min ?? PRICE_MIN);
+  const [localMax, setLocalMax] = useState(priceFilter.max ?? PRICE_MAX);
+
+  const pctMin = ((localMin - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+  const pctMax = ((localMax - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+  const hasActive = priceFilter.min !== null || priceFilter.max !== null;
+
+  return (
+    <div style={{ width: 300, flexShrink: 0, borderRight: "1px solid "+T.lightGrey, background: T.white, minHeight: "calc(100vh - 118px)", alignSelf: "stretch" }}>
+      <style>{`.pr-range{-webkit-appearance:none;position:absolute;width:100%;background:transparent;pointer-events:none;margin:0;height:20px;top:0;outline:none}.pr-range::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:all;width:16px;height:16px;background:#000;border-radius:50%;cursor:pointer;margin-top:-7px}.pr-range::-webkit-slider-runnable-track{height:2px;background:transparent}.pr-range::-moz-range-thumb{pointer-events:all;width:16px;height:16px;background:#000;border-radius:50%;cursor:pointer;border:none}.pr-range::-moz-range-track{height:2px;background:transparent}`}</style>
+      {/* Header */}
+      <div style={{ padding: "24px 24px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid "+T.bgGrey }}>
+        <div>
+          <div style={{ fontFamily: T.fontH, fontSize: 18, fontWeight: 700, color: T.black, marginBottom: 4 }}>Filter products</div>
+          <div style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.midGrey }}>Showing {filteredCount} bike{filteredCount !== 1 ? "s" : ""}</div>
+        </div>
+        <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: "50%", border: "1px solid "+T.lightGrey, background: T.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: T.darkGrey, flexShrink: 0, transition: "border-color 0.15s" }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = T.black} onMouseLeave={e => e.currentTarget.style.borderColor = T.lightGrey}>{"\u2715"}</button>
+      </div>
+
+      {/* Price section */}
+      <div style={{ padding: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <span style={{ fontFamily: T.fontM, fontSize: 12, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.08em", color: T.black }}>Price</span>
+          {hasActive && (
+            <button onClick={() => { setLocalMin(PRICE_MIN); setLocalMax(PRICE_MAX); onReset(); }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: T.midGrey, lineHeight: 1, padding: 0 }}>{"\u2715"}</button>
+          )}
+        </div>
+
+        {/* Dual-handle range slider */}
+        <div style={{ position: "relative", height: 20, marginBottom: 20 }}>
+          <div style={{ position: "absolute", top: 9, left: 0, right: 0, height: 2, background: T.lightGrey, borderRadius: 1 }} />
+          <div style={{ position: "absolute", top: 9, left: pctMin+"%", right: (100 - pctMax)+"%", height: 2, background: T.black, borderRadius: 1 }} />
+          <input className="pr-range" type="range" min={PRICE_MIN} max={PRICE_MAX} step={1000}
+            value={localMin}
+            onChange={e => { const v = Math.min(Number(e.target.value), localMax - 5000); setLocalMin(Math.max(PRICE_MIN, v)); }}
+            style={{ zIndex: localMin > PRICE_MIN + (PRICE_MAX - PRICE_MIN) * 0.5 ? 5 : 3 }} />
+          <input className="pr-range" type="range" min={PRICE_MIN} max={PRICE_MAX} step={1000}
+            value={localMax}
+            onChange={e => { const v = Math.max(Number(e.target.value), localMin + 5000); setLocalMax(Math.min(PRICE_MAX, v)); }}
+            style={{ zIndex: localMin > PRICE_MIN + (PRICE_MAX - PRICE_MIN) * 0.5 ? 3 : 5 }} />
+        </div>
+
+        {/* Input fields */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontFamily: T.fontB, fontSize: 12, color: T.darkGrey, width: 28, flexShrink: 0 }}>From</span>
+            <input type="number" value={localMin}
+              onChange={e => { const v = Number(e.target.value); if (!isNaN(v)) setLocalMin(Math.max(PRICE_MIN, Math.min(v, localMax - 5000))); }}
+              style={{ flex: 1, border: "none", borderBottom: "1px solid "+T.lightGrey, outline: "none", fontFamily: T.fontM, fontSize: 13, padding: "4px 0", background: "transparent", color: T.black, minWidth: 0 }} />
+            <span style={{ fontFamily: T.fontB, fontSize: 12, color: T.darkGrey, flexShrink: 0 }}>CZK</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontFamily: T.fontB, fontSize: 12, color: T.darkGrey, width: 28, flexShrink: 0 }}>To</span>
+            <input type="number" value={localMax}
+              onChange={e => { const v = Number(e.target.value); if (!isNaN(v)) setLocalMax(Math.min(PRICE_MAX, Math.max(v, localMin + 5000))); }}
+              style={{ flex: 1, border: "none", borderBottom: "1px solid "+T.lightGrey, outline: "none", fontFamily: T.fontM, fontSize: 13, padding: "4px 0", background: "transparent", color: T.black, minWidth: 0 }} />
+            <span style={{ fontFamily: T.fontB, fontSize: 12, color: T.darkGrey, flexShrink: 0 }}>CZK</span>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => onApply({ min: localMin, max: localMax })}
+            style={{ flex: 1, padding: "10px 0", background: T.black, color: T.white, border: "none", borderRadius: 8, fontFamily: T.fontB, fontSize: 13, fontWeight: 570, cursor: "pointer" }}>Apply</button>
+          <button onClick={() => { setLocalMin(PRICE_MIN); setLocalMax(PRICE_MAX); onReset(); }}
+            style={{ flex: 1, padding: "10px 0", background: T.bgGrey, color: T.darkGrey, border: "none", borderRadius: 8, fontFamily: T.fontB, fontSize: 13, fontWeight: 570, cursor: "pointer" }}>Reset</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Product Card ───────────────────────────────────────────────────────────
 
-function ProductCard({ bike, onSelect, onCompare, isCompared }) {
+function ProductCard({ bike, displayVariants, onSelect, onCompare, isCompared }) {
   const [h, setH] = useState(false);
-  const v = bike.variants[0];
-  const multi = bike.variants.length > 1;
-  const hasSale = familyHasSale(bike);
+  const variants = displayVariants || bike.variants;
+  const v = variants[0];
+  const multi = variants.length > 1;
+  const hasSale = variants.some(v => v.salePrice !== null);
 
   return (
     <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} onClick={() => onSelect(bike)}
       style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 24, cursor: "pointer" }}>
-
       <div style={{ position: "relative", width: "100%", borderRadius: 8, overflow: "hidden", background: T.bgGrey, aspectRatio: "4/3", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <img src={v.img} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", mixBlendMode: "multiply" }} />
         <div style={{ position: "absolute", top: 12, left: 12, display: "flex", gap: 6 }}>
-          {multi && <Badge label={`${bike.variants.length} variants`} />}
-          {!multi && hasSale && <Badge label={`-${salePct(v.price, v.salePrice)}%`} variant="sale" />}
+          {multi && <Badge label={variants.length+" variants"} />}
+          {!multi && hasSale && <Badge label={"-"+salePct(v.price, v.salePrice)+"%"} variant="sale" />}
           {multi && hasSale && <Badge label="sale" variant="sale" />}
         </div>
-        <CompareButton isCompared={isCompared} visible={h || isCompared}
-          onClick={(e) => { e.stopPropagation(); onCompare(v.id); }} />
+        <CompareButton isCompared={isCompared} visible={h || isCompared} onClick={(e) => { e.stopPropagation(); onCompare(v.id); }} />
       </div>
-
       <div style={{ display: "flex", paddingRight: 16, flexDirection: "column", alignItems: "flex-start", gap: 20, alignSelf: "stretch" }}>
         <div style={{ display: "flex", gap: 6 }}>{v.colors.map((c, i) => <ColorDot key={i} color={c} />)}</div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12, alignSelf: "stretch" }}>
           <div style={{ color: T.black, fontFamily: T.fontH, fontSize: 18, fontWeight: 570, lineHeight: 1 }}>{bike.family}</div>
           <div style={{ color: T.darkGrey, fontFamily: T.fontB, fontSize: 14, fontWeight: 570, lineHeight: 1.5 }}>{v.subtitle}</div>
-          <GridPrice variants={bike.variants} />
+          <GridPrice variants={variants} />
         </div>
       </div>
     </div>
@@ -203,13 +281,13 @@ function ProductCard({ bike, onSelect, onCompare, isCompared }) {
 
 // ─── Middle Page: Variant Card ──────────────────────────────────────────────
 
-function VariantCompareCard({ v, vi, totalVariants, onSelectVariant, onCompare, isCompared, diffKeys, sameKeys, getVal }) {
+function VariantCompareCard({ v, vi, totalVariants, onSelectVariant, onCompare, isCompared, diffKeys, sameKeys, getVal, passes }) {
   const [h, setH] = useState(false);
   const onSale = v.salePrice !== null;
   const pct = onSale ? salePct(v.price, v.salePrice) : 0;
 
   return (
-    <div style={{ borderRight: vi < totalVariants - 1 ? `1px solid ${T.lightGrey}` : "none", padding: vi === 0 ? "0 24px 0 0" : vi === totalVariants - 1 ? "0 0 0 24px" : "0 24px" }}>
+    <div style={{ borderRight: vi < totalVariants - 1 ? `1px solid ${T.lightGrey}` : "none", padding: vi === 0 ? "0 24px 0 0" : vi === totalVariants - 1 ? "0 0 0 24px" : "0 24px", opacity: passes === false ? 0.5 : 1 }}>
 
       <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} onClick={() => onSelectVariant(v)}
         style={{ background: T.bgGrey, borderRadius: 10, overflow: "hidden", aspectRatio: "4/3", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, position: "relative", cursor: "pointer" }}>
@@ -229,6 +307,10 @@ function VariantCompareCard({ v, vi, totalVariants, onSelectVariant, onCompare, 
         </div>
       ) : (
         <div style={{ fontFamily: T.fontM, fontSize: 20, fontWeight: 700, lineHeight: 1, color: T.black, textTransform: "uppercase", marginBottom: 20 }}>{fmt(v.price)} czk</div>
+      )}
+
+      {passes === false && (
+        <div style={{ fontFamily: T.fontB, fontSize: 11, color: T.midGrey, marginBottom: 16, fontStyle: "italic" }}>Outside your price range</div>
       )}
 
       <button onClick={() => onSelectVariant(v)}
@@ -278,7 +360,7 @@ function VariantCompareCard({ v, vi, totalVariants, onSelectVariant, onCompare, 
 
 // ─── Middle Page ────────────────────────────────────────────────────────────
 
-function VariantComparePage({ bike, onBack, backLabel, onSelectVariant, compared, onCompare }) {
+function VariantComparePage({ bike, onBack, backLabel, onSelectVariant, compared, onCompare, variantPassesFilter }) {
   const vs = bike.variants;
   const getVal = (v, k) => { const val = v[k]; return Array.isArray(val) ? val.join(", ") : val || null; };
   const diffKeys = SPEC_KEYS.filter(({ key }) => {
@@ -305,7 +387,8 @@ function VariantComparePage({ bike, onBack, backLabel, onSelectVariant, compared
         {vs.map((v, vi) => (
           <VariantCompareCard key={v.id} v={v} vi={vi} totalVariants={vs.length}
             onSelectVariant={onSelectVariant} onCompare={onCompare} isCompared={compared.includes(v.id)}
-            diffKeys={diffKeys} sameKeys={sameKeys} getVal={getVal} />
+            diffKeys={diffKeys} sameKeys={sameKeys} getVal={getVal}
+            passes={variantPassesFilter ? variantPassesFilter(v) : true} />
         ))}
       </div>
     </div>
@@ -314,7 +397,7 @@ function VariantComparePage({ bike, onBack, backLabel, onSelectVariant, compared
 
 // ─── Detail Page ────────────────────────────────────────────────────────────
 
-function DetailPage({ variant, family, onBack, bike, onCompareVariants }) {
+function DetailPage({ variant, family, onBack, bike, onCompareVariants, variantPassesFilter }) {
   const [sz, setSz] = useState(null);
   const [selColor, setSelColor] = useState(variant.colors[0]);
   const onSale = variant.salePrice !== null;
@@ -375,20 +458,27 @@ function DetailPage({ variant, family, onBack, bike, onCompareVariants }) {
           <p style={{ fontFamily: T.fontB, fontSize: 14, lineHeight: 1.6, color: T.darkGrey, margin: "0 0 20px" }}>{variant.subtitle}</p>
 
           {/* Variant awareness banner */}
-          {otherVariants.length > 0 && (
-            <div style={{ background: T.bgGrey, borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.darkGrey }}>
-                <span style={{ fontSize: 14, lineHeight: 1 }}>{"\u2139"}</span>
-                Also available in {otherVariants.length} other {otherVariants.length === 1 ? "variant" : "variants"}
+          {otherVariants.length > 0 && (() => {
+            const bannerPriceText = otherVariants.length === 1
+              ? " \u00b7 " + fmt(otherVariants[0].salePrice !== null ? otherVariants[0].salePrice : otherVariants[0].price) + " czk"
+              : "";
+            const bannerOutside = otherVariants.length === 1 && variantPassesFilter && !variantPassesFilter(otherVariants[0]);
+            return (
+              <div style={{ background: T.bgGrey, borderRadius: 8, padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.darkGrey }}>
+                  <span style={{ fontSize: 14, lineHeight: 1 }}>{"\u2139"}</span>
+                  Also available in {otherVariants.length} other {otherVariants.length === 1 ? "variant" : "variants"}{bannerPriceText}
+                  {bannerOutside && <span style={{ color: T.midGrey, fontWeight: 400 }}> (outside filter)</span>}
+                </div>
+                <span onClick={onCompareVariants}
+                  style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.black, cursor: "pointer", whiteSpace: "nowrap" }}
+                  onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                  onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>
+                  Compare variants {"\u2192"}
+                </span>
               </div>
-              <span onClick={onCompareVariants}
-                style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.black, cursor: "pointer", whiteSpace: "nowrap" }}
-                onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
-                onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>
-                Compare variants {"\u2192"}
-              </span>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Key specs */}
           {keySpecs.length > 0 && (
@@ -493,18 +583,22 @@ function Header({ cc }) {
   );
 }
 
-function Filters() {
+function Filters({ filterOpen, onToggle, filteredCount }) {
   const cats = ["All", "Road", "Gran Fondo", "Gravel"];
+  const total = BIKES.length;
+  const showingText = filteredCount < total ? `Showing ${filteredCount} of ${total} bikes` : `Showing ${total} bikes`;
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 32px", borderBottom: `1px solid ${T.bgGrey}` }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 32px", borderBottom: "1px solid "+T.bgGrey }}>
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-        <span style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.darkGrey, cursor: "pointer" }}>Show Filters ≡</span>
-        <span style={{ fontFamily: T.fontB, fontSize: 13, color: T.midGrey }}>Showing {BIKES.length} bikes</span>
+        <span onClick={onToggle} style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: filterOpen ? T.black : T.darkGrey, cursor: "pointer" }}>
+          {filterOpen ? "Hide Filters" : "Show Filters"} {"\u2261"}
+        </span>
+        <span style={{ fontFamily: T.fontB, fontSize: 13, color: T.midGrey }}>{showingText}</span>
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        {cats.map((c, i) => <span key={c} style={{ padding: "7px 18px", borderRadius: 100, fontFamily: T.fontB, fontSize: 13, fontWeight: 570, cursor: "pointer", background: i === 0 ? T.black : T.white, color: i === 0 ? T.white : T.darkGrey, border: i === 0 ? `1px solid ${T.black}` : `1px solid ${T.lightGrey}` }}>{c}</span>)}
+        {cats.map((c, i) => <span key={c} style={{ padding: "7px 18px", borderRadius: 100, fontFamily: T.fontB, fontSize: 13, fontWeight: 570, cursor: "pointer", background: i === 0 ? T.black : T.white, color: i === 0 ? T.white : T.darkGrey, border: i === 0 ? "1px solid "+T.black : "1px solid "+T.lightGrey }}>{c}</span>)}
       </div>
-      <span style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.darkGrey, cursor: "pointer" }}>Sort by Default ≡</span>
+      <span style={{ fontFamily: T.fontB, fontSize: 13, fontWeight: 570, color: T.darkGrey, cursor: "pointer" }}>Sort by Default {"\u2261"}</span>
     </div>
   );
 }
@@ -516,17 +610,29 @@ export default function App() {
   const [bike, setBike] = useState(null);
   const [vari, setVari] = useState(null);
   const [comp, setComp] = useState([]);
-  const [compareOrigin, setCompareOrigin] = useState(null); // null = from grid, { variant, bike } = from detail
+  const [compareOrigin, setCompareOrigin] = useState(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [priceFilter, setPriceFilter] = useState({ min: null, max: null });
+
+  const variantPassesFilter = (v) => {
+    const ep = v.salePrice !== null ? v.salePrice : v.price;
+    if (priceFilter.min !== null && ep < priceFilter.min) return false;
+    if (priceFilter.max !== null && ep > priceFilter.max) return false;
+    return true;
+  };
+  const getPassingVariants = (b) => b.variants.filter(variantPassesFilter);
+  const filteredBikes = BIKES.filter(b => getPassingVariants(b).length > 0);
 
   const go = (p) => { setPg(p); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
   const selBike = (b) => {
-    if (b.variants.length === 1) { setVari(b.variants[0]); setBike(b); go("detail"); }
+    const passing = getPassingVariants(b);
+    if (passing.length === 1) { setVari(passing[0]); setBike(b); go("detail"); }
+    else if (passing.length === 0) return;
     else { setBike(b); setCompareOrigin(null); go("compare"); }
   };
 
   const toggleComp = (id) => setComp(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-
   const selVar = (v) => { setVari(v); setCompareOrigin(null); go("detail"); };
 
   const back = () => {
@@ -555,11 +661,32 @@ export default function App() {
   return (
     <div style={{ fontFamily: T.fontB, background: T.white, minHeight: "100vh" }}>
       <Header cc={comp.length} />
-      {pg === "grid" && <><Filters /><div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 32, padding: "32px 32px 80px", maxWidth: 1200, margin: "0 auto" }}>
-        {BIKES.map(b => <ProductCard key={b.id} bike={b} onSelect={selBike} onCompare={toggleComp} isCompared={comp.includes(b.variants[0].id)} />)}
-      </div></>}
-      {pg === "compare" && bike && <VariantComparePage bike={bike} onBack={handleCompareBack} backLabel={compareBackLabel} onSelectVariant={selVar} compared={comp} onCompare={toggleComp} />}
-      {pg === "detail" && vari && <DetailPage variant={vari} family={bike?.family || vari.name} onBack={back} bike={bike} onCompareVariants={goToCompareFromDetail} />}
+      {pg === "grid" && (
+        <>
+          <Filters filterOpen={filterOpen} onToggle={() => setFilterOpen(f => !f)} filteredCount={filteredBikes.length} />
+          <div style={{ display: "flex", alignItems: "flex-start" }}>
+            {filterOpen && (
+              <FilterPanel
+                onClose={() => setFilterOpen(false)}
+                priceFilter={priceFilter}
+                onApply={(f) => setPriceFilter(f)}
+                onReset={() => setPriceFilter({ min: null, max: null })}
+                filteredCount={filteredBikes.length}
+              />
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "grid", gridTemplateColumns: filterOpen ? "repeat(2,1fr)" : "repeat(3,1fr)", gap: 32, padding: "32px 32px 80px" }}>
+                {filteredBikes.map(b => {
+                  const passing = getPassingVariants(b);
+                  return <ProductCard key={b.id} bike={b} displayVariants={passing} onSelect={selBike} onCompare={toggleComp} isCompared={comp.includes(passing[0].id)} />;
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      {pg === "compare" && bike && <VariantComparePage bike={bike} onBack={handleCompareBack} backLabel={compareBackLabel} onSelectVariant={selVar} compared={comp} onCompare={toggleComp} variantPassesFilter={variantPassesFilter} />}
+      {pg === "detail" && vari && <DetailPage variant={vari} family={bike?.family || vari.name} onBack={back} bike={bike} onCompareVariants={goToCompareFromDetail} variantPassesFilter={variantPassesFilter} />}
     </div>
   );
 }
