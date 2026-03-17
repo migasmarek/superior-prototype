@@ -199,7 +199,7 @@ function VariantCompareCard({ v, vi, totalVariants, onSelectVariant, onCompare, 
   return (
     <div style={{ borderRight: vi < totalVariants - 1 ? `1px solid ${T.lightGrey}` : "none", padding: vi === 0 ? "0 24px 0 0" : vi === totalVariants - 1 ? "0 0 0 24px" : "0 24px" }}>
 
-      <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)}
+      <div onMouseEnter={() => setH(true)} onMouseLeave={() => setH(false)} onClick={() => onSelectVariant(v)}
         style={{ background: T.bgGrey, borderRadius: 10, overflow: "hidden", aspectRatio: "4/3", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, position: "relative", cursor: "pointer" }}>
         <img src={v.img} alt="" style={{ width: "100%", height: "100%", objectFit: "contain", mixBlendMode: "multiply" }} />
         {onSale && <div style={{ position: "absolute", top: 12, left: 12 }}><Badge label={`-${pct}%`} variant="sale" /></div>}
