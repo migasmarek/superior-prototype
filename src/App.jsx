@@ -278,7 +278,7 @@ function VariantCompareCard({ v, vi, totalVariants, onSelectVariant, onCompare, 
 
 // ─── Middle Page ────────────────────────────────────────────────────────────
 
-function VariantComparePage({ bike, onBack, onSelectVariant, compared, onCompare }) {
+function VariantComparePage({ bike, onBack, backLabel, onSelectVariant, compared, onCompare }) {
   const vs = bike.variants;
   const getVal = (v, k) => { const val = v[k]; return Array.isArray(val) ? val.join(", ") : val || null; };
   const diffKeys = SPEC_KEYS.filter(({ key }) => {
@@ -293,7 +293,7 @@ function VariantComparePage({ bike, onBack, onSelectVariant, compared, onCompare
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 32px 80px" }}>
       <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 570, color: T.darkGrey, padding: "28px 0 20px", fontFamily: T.fontB }}>
-        ← Back to all bikes
+        {"\u2190"} {backLabel || "Back to all bikes"}
       </button>
       <h1 style={{ fontFamily: T.fontH, fontSize: 32, fontWeight: 570, lineHeight: 1, color: T.black, marginBottom: 8, textAlign: "center" }}>
         Choose your {bike.family}
@@ -516,18 +516,41 @@ export default function App() {
   const [bike, setBike] = useState(null);
   const [vari, setVari] = useState(null);
   const [comp, setComp] = useState([]);
+  const [compareOrigin, setCompareOrigin] = useState(null); // null = from grid, { variant, bike } = from detail
 
   const go = (p) => { setPg(p); window.scrollTo({ top: 0, behavior: "smooth" }); };
+
   const selBike = (b) => {
     if (b.variants.length === 1) { setVari(b.variants[0]); setBike(b); go("detail"); }
-    else { setBike(b); go("compare"); }
+    else { setBike(b); setCompareOrigin(null); go("compare"); }
   };
+
   const toggleComp = (id) => setComp(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
-  const selVar = (v) => { setVari(v); go("detail"); };
+
+  const selVar = (v) => { setVari(v); setCompareOrigin(null); go("detail"); };
+
   const back = () => {
     if (pg === "detail" && bike && bike.variants.length > 1) go("compare");
     else { setBike(null); setVari(null); go("grid"); }
   };
+
+  const handleCompareBack = () => {
+    if (compareOrigin) {
+      setVari(compareOrigin.variant);
+      setBike(compareOrigin.bike);
+      setCompareOrigin(null);
+      go("detail");
+    } else {
+      setBike(null); setVari(null); go("grid");
+    }
+  };
+
+  const goToCompareFromDetail = () => {
+    setCompareOrigin({ variant: vari, bike });
+    go("compare");
+  };
+
+  const compareBackLabel = compareOrigin ? `Back to ${compareOrigin.bike.family} detail` : "Back to all bikes";
 
   return (
     <div style={{ fontFamily: T.fontB, background: T.white, minHeight: "100vh" }}>
@@ -535,8 +558,8 @@ export default function App() {
       {pg === "grid" && <><Filters /><div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 32, padding: "32px 32px 80px", maxWidth: 1200, margin: "0 auto" }}>
         {BIKES.map(b => <ProductCard key={b.id} bike={b} onSelect={selBike} onCompare={toggleComp} isCompared={comp.includes(b.variants[0].id)} />)}
       </div></>}
-      {pg === "compare" && bike && <VariantComparePage bike={bike} onBack={back} onSelectVariant={selVar} compared={comp} onCompare={toggleComp} />}
-      {pg === "detail" && vari && <DetailPage variant={vari} family={bike?.family || vari.name} onBack={back} bike={bike} onCompareVariants={() => go("compare")} />}
+      {pg === "compare" && bike && <VariantComparePage bike={bike} onBack={handleCompareBack} backLabel={compareBackLabel} onSelectVariant={selVar} compared={comp} onCompare={toggleComp} />}
+      {pg === "detail" && vari && <DetailPage variant={vari} family={bike?.family || vari.name} onBack={back} bike={bike} onCompareVariants={goToCompareFromDetail} />}
     </div>
   );
 }
